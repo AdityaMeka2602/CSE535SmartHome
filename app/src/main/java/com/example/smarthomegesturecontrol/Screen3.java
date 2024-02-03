@@ -34,6 +34,9 @@ public class Screen3 extends AppCompatActivity {
     private Button uploadButton;
     private Button nextGestureButton;
 
+    private static final int REQUEST_VIDEO_CAPTURE = 1;
+
+
     static int videoNumber = 1;
 
     @Override
@@ -96,10 +99,9 @@ public class Screen3 extends AppCompatActivity {
         Intent intent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
         intent.putExtra(MediaStore.EXTRA_DURATION_LIMIT, 5);
         Uri fileUri = getOutputMediaFileUri();
-        intent.putExtra(MediaStore.EXTRA_OUTPUT,fileUri);
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri);
         intent.putExtra("android.intent.extras.CAMERA_FACING", 1);
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        startActivity(intent);
+        startActivityForResult(intent, REQUEST_VIDEO_CAPTURE);
     }
 
     public Uri getOutputMediaFileUri()
@@ -112,6 +114,17 @@ public class Screen3 extends AppCompatActivity {
         return uriSavedVideo;
     }
 
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_VIDEO_CAPTURE && resultCode == RESULT_OK) {
+            // Video capture was successful
+            Log.d("Screen3", "Video saved to: " + getOutputMediaFileUri().getPath());
+            // Here you can update UI or perform other actions as needed
+        }
+    }
+
     protected void askPermissions() {
         String[] permissions = {
                 "android.permission.READ_EXTERNAL_STORAGE",
@@ -121,18 +134,31 @@ public class Screen3 extends AppCompatActivity {
         requestPermissions(permissions, requestCode);
     }
 
+
+
     public void uploadVideo(String videoFile, String gestureVideoName)
     {
         OkHttpClient okHttpClient = new OkHttpClient();
-        String url = "http://192.168.1.7:5000/upload-video";
+        String url = "http://10.0.2.2:5000/upload-video";
 
-        String baseDir = Environment.getExternalStorageDirectory().getAbsolutePath();
-        String fileName = "GestureDetectionVideos/test_video.mp4";
-        String filePath = (baseDir+"/"+fileName);
-        File file = new File(filePath);
+        // Ensure this directory exists on the device
+        File videoDirectory = new File(Environment.getExternalStorageDirectory(), "GestureDetectionVideos");
+        if (!videoDirectory.exists()) {
+            videoDirectory.mkdirs();
+        }
+
+        // File path for the video to upload
+        File videoFileToUpload = new File(videoDirectory, "test_video.mp4");
+
+        if (!videoFileToUpload.exists()) {
+            // Handle the case where the video file doesn't exist
+            Log.e("uploadVideo", "Video file not found: " + videoFileToUpload.getAbsolutePath());
+            return;
+        }
+
         MultipartBody.Builder multipartBodyBuilder = new MultipartBody.Builder().setType(MultipartBody.FORM);
-        String videoName = gestureVideoName+"_PRACTICE_"+videoNumber+"_mysore_srinath.mp4";
-        multipartBodyBuilder.addFormDataPart("video",videoName, RequestBody.create(MediaType.parse("video/*mp4"), file));
+        String videoName = gestureVideoName + "_PRACTICE_" + videoNumber + "_aditya_meka.mp4";
+        multipartBodyBuilder.addFormDataPart("video", videoName, RequestBody.create(MediaType.parse("video/*mp4"), videoFileToUpload));
         RequestBody postBodyImage = multipartBodyBuilder.build();
         Request request = new Request.Builder().url(url).post(postBodyImage).build();
         okHttpClient.newCall(request).enqueue(new Callback() {
